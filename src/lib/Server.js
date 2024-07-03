@@ -1,5 +1,6 @@
 'use strict';
 
+const bcrypt = require('bcryptjs');
 const crypto = require('node:crypto');
 const { createServer } = require('node:http');
 const { stat, readFile } = require('node:fs/promises');
@@ -28,10 +29,39 @@ const {
   WEBUI_HOST,
   RELEASE,
   PASSWORD,
+  PASSWORD_HASH,
   LANG,
   UI_TRAFFIC_STATS,
   UI_CHART_TYPE,
 } = require('../config');
+
+const requiresPassword = !!PASSWORD || !!PASSWORD_HASH;
+
+/**
+ * Checks if `password` matches the PASSWORD_HASH.
+ *
+ * For backward compatibility it also allows `password` to match the clear text PASSWORD,
+ * but only if no PASSWORD_HASH is provided.
+ *
+ * If both enviornment variables are not set, the password is always invalid.
+ *
+ * @param {string} password String to test
+ * @returns {boolean} true if matching environment, otherwise false
+ */
+const isPasswordValid = (password) => {
+  if (typeof password !== 'string') {
+    return false;
+  }
+
+  if (PASSWORD_HASH) {
+    return bcrypt.compareSync(password, PASSWORD_HASH);
+  }
+  if (PASSWORD) {
+    return password === PASSWORD;
+  }
+
+  return false;
+};
 
 module.exports = class Server {
 
@@ -71,7 +101,6 @@ module.exports = class Server {
 
       // Authentication
       .get('/api/session', defineEventHandler((event) => {
-        const requiresPassword = !!process.env.PASSWORD;
         const authenticated = requiresPassword
           ? !!(event.node.req.session && event.node.req.session.authenticated)
           : true;
@@ -84,14 +113,16 @@ module.exports = class Server {
       .post('/api/session', defineEventHandler(async (event) => {
         const { password } = await readBody(event);
 
-        if (typeof password !== 'string') {
+        if (!requiresPassword) {
+          // if no password is required, the API should never be called.
+          // Do not automatically authenticate the user.
           throw createError({
             status: 401,
-            message: 'Missing: Password',
+            message: 'Invalid state',
           });
         }
 
-        if (password !== PASSWORD) {
+        if (!isPasswordValid(password)) {
           throw createError({
             status: 401,
             message: 'Incorrect Password',
@@ -109,12 +140,21 @@ module.exports = class Server {
     // WireGuard
     app.use(
       fromNodeMiddleware((req, res, next) => {
-        if (!PASSWORD || !req.url.startsWith('/api/')) {
+        if (!requiresPassword || !req.url.startsWith('/api/')) {
           return next();
         }
 
         if (req.session && req.session.authenticated) {
           return next();
+        }
+
+        if (req.url.startsWith('/api/') && req.headers['authorization']) {
+          if (isPasswordValid(req.headers['authorization'])) {
+            return next();
+          }
+          return res.status(401).json({
+            error: 'Incorrect Password',
+          });
         }
 
         return res.status(401).json({
