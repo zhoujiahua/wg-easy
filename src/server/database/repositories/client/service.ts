@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, or, like, and } from 'drizzle-orm';
 import { containsCidr, parseCidr } from 'cidr-tools';
 import { client } from './schema';
 import type {
@@ -18,6 +18,17 @@ function createPreparedStatement(db: DBType) {
         },
       })
       .prepare(),
+    findAllPublic: db.query.client
+      .findMany({
+        with: {
+          oneTimeLink: true,
+        },
+        columns: {
+          privateKey: false,
+          preSharedKey: false,
+        },
+      })
+      .prepare(),
     findById: db.query.client
       .findFirst({ where: eq(client.id, sql.placeholder('id')) })
       .prepare(),
@@ -25,6 +36,43 @@ function createPreparedStatement(db: DBType) {
       .findMany({
         where: eq(client.userId, sql.placeholder('userId')),
         with: { oneTimeLink: true },
+        columns: {
+          privateKey: false,
+          preSharedKey: false,
+        },
+      })
+      .prepare(),
+    findAllPublicFiltered: db.query.client
+      .findMany({
+        where: or(
+          like(client.name, sql.placeholder('filter')),
+          like(client.ipv4Address, sql.placeholder('filter')),
+          like(client.ipv6Address, sql.placeholder('filter'))
+        ),
+        with: {
+          oneTimeLink: true,
+        },
+        columns: {
+          privateKey: false,
+          preSharedKey: false,
+        },
+      })
+      .prepare(),
+    findByUserIdFiltered: db.query.client
+      .findMany({
+        where: and(
+          eq(client.userId, sql.placeholder('userId')),
+          or(
+            like(client.name, sql.placeholder('filter')),
+            like(client.ipv4Address, sql.placeholder('filter')),
+            like(client.ipv6Address, sql.placeholder('filter'))
+          )
+        ),
+        with: { oneTimeLink: true },
+        columns: {
+          privateKey: false,
+          preSharedKey: false,
+        },
       })
       .prepare(),
     toggle: db
@@ -57,8 +105,58 @@ export class ClientService {
     }));
   }
 
+  /**
+   * Never return values directly from this function. Use {@link getAllPublic} instead.
+   */
   async getAll() {
     const result = await this.#statements.findAll.execute();
+    return result.map((row) => ({
+      ...row,
+      createdAt: new Date(row.createdAt),
+      updatedAt: new Date(row.updatedAt),
+    }));
+  }
+
+  /**
+   * Returns all clients without sensitive data
+   */
+  async getAllPublic() {
+    const result = await this.#statements.findAllPublic.execute();
+    return result.map((row) => ({
+      ...row,
+      createdAt: new Date(row.createdAt),
+      updatedAt: new Date(row.updatedAt),
+    }));
+  }
+
+  /**
+   * Get clients based on user ID and filter conditions
+   */
+  async getForUserFiltered(userId: ID, filter: string) {
+    const filterPattern = `%${filter.toLowerCase()}%`;
+
+    const result = await this.#statements.findByUserIdFiltered.execute({
+      userId,
+      filter: filterPattern,
+    });
+
+    return result.map((row) => ({
+      ...row,
+      createdAt: new Date(row.createdAt),
+      updatedAt: new Date(row.updatedAt),
+    }));
+  }
+
+  /**
+   * Get all clients based on filter conditions without sensitive data
+   */
+  async getAllPublicFiltered(filter: string) {
+    const filterPattern = `%${filter.toLowerCase()}%`;
+
+    const result = await this.#statements.findAllPublicFiltered.execute({
+      filter: filterPattern,
+    });
+
     return result.map((row) => ({
       ...row,
       createdAt: new Date(row.createdAt),
@@ -102,7 +200,7 @@ export class ClientService {
       const ipv6Cidr = parseCidr(clientInterface.ipv6Cidr);
       const ipv6Address = nextIP(6, ipv6Cidr, clients);
 
-      await tx
+      return await tx
         .insert(client)
         .values({
           name,
@@ -120,6 +218,7 @@ export class ClientService {
           serverAllowedIps: [],
           enabled: true,
         })
+        .returning({ clientId: client.id })
         .execute();
     });
   }

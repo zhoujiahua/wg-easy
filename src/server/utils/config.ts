@@ -12,11 +12,23 @@ export const OLD_ENV = {
   PASSWORD_HASH: process.env.PASSWORD_HASH,
 };
 
+const OVERRIDE_AUTO_AWG = process.env.OVERRIDE_AUTO_AWG?.toLowerCase();
+
 export const WG_ENV = {
   /** UI is hosted on HTTP instead of HTTPS */
   INSECURE: process.env.INSECURE === 'true',
   /** Port the UI is listening on */
   PORT: assertEnv('PORT'),
+  /** If IPv6 should be disabled */
+  DISABLE_IPV6: process.env.DISABLE_IPV6 === 'true',
+  /** Override automatic detection */
+  OVERRIDE_AUTO_AWG:
+    OVERRIDE_AUTO_AWG === ('wg' as const) ||
+    OVERRIDE_AUTO_AWG === ('awg' as const)
+      ? OVERRIDE_AUTO_AWG
+      : undefined,
+  /** TODO: delete on next major version */
+  EXPERIMENTAL_AWG: process.env.EXPERIMENTAL_AWG === 'true',
 };
 
 export const WG_INITIAL_ENV = {
@@ -26,6 +38,7 @@ export const WG_INITIAL_ENV = {
   DNS: process.env.INIT_DNS?.split(',').map((x) => x.trim()),
   IPV4_CIDR: process.env.INIT_IPV4_CIDR,
   IPV6_CIDR: process.env.INIT_IPV6_CIDR,
+  ALLOWED_IPS: process.env.INIT_ALLOWED_IPS?.split(',').map((x) => x.trim()),
   HOST: process.env.INIT_HOST,
   PORT: process.env.INIT_PORT
     ? Number.parseInt(process.env.INIT_PORT, 10)

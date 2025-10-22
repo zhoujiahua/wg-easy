@@ -18,6 +18,13 @@ export default definePermissionEventHandler(
         statusMessage: 'Client not found',
       });
     }
-    return result;
+
+    // data can be undefined if the client is disabled
+    const data = await WireGuard.dumpByPublicKey(result.publicKey);
+
+    return {
+      ...result,
+      endpoint: data?.endpoint,
+    };
   }
 );

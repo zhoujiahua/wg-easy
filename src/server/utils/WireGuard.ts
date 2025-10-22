@@ -25,13 +25,21 @@ class WireGuard {
     const hooks = await Database.hooks.get();
 
     const result = [];
-    result.push(wg.generateServerInterface(wgInterface, hooks));
+    result.push(
+      wg.generateServerInterface(wgInterface, hooks, {
+        enableIpv6: !WG_ENV.DISABLE_IPV6,
+      })
+    );
 
     for (const client of clients) {
       if (!client.enabled) {
         continue;
       }
-      result.push(wg.generateServerPeer(client));
+      result.push(
+        wg.generateServerPeer(client, {
+          enableIpv6: !WG_ENV.DISABLE_IPV6,
+        })
+      );
     }
 
     result.push('');
@@ -53,10 +61,15 @@ class WireGuard {
     WG_DEBUG('Config synced successfully.');
   }
 
-  async getClientsForUser(userId: ID) {
+  async getClientsForUser(userId: ID, filter?: string) {
     const wgInterface = await Database.interfaces.get();
 
-    const dbClients = await Database.clients.getForUser(userId);
+    let dbClients;
+    if (filter?.trim()) {
+      dbClients = await Database.clients.getForUserFiltered(userId, filter);
+    } else {
+      dbClients = await Database.clients.getForUser(userId);
+    }
 
     const clients = dbClients.map((client) => ({
       ...client,
@@ -85,9 +98,27 @@ class WireGuard {
     return clients;
   }
 
-  async getAllClients() {
+  async dumpByPublicKey(publicKey: string) {
     const wgInterface = await Database.interfaces.get();
-    const dbClients = await Database.clients.getAll();
+
+    const dump = await wg.dump(wgInterface.name);
+    const clientDump = dump.find(
+      ({ publicKey: dumpPublicKey }) => dumpPublicKey === publicKey
+    );
+
+    return clientDump;
+  }
+
+  async getAllClients(filter?: string) {
+    const wgInterface = await Database.interfaces.get();
+
+    let dbClients;
+    if (filter?.trim()) {
+      dbClients = await Database.clients.getAllPublicFiltered(filter);
+    } else {
+      dbClients = await Database.clients.getAllPublic();
+    }
+
     const clients = dbClients.map((client) => ({
       ...client,
       latestHandshakeAt: null as Date | null,
@@ -125,7 +156,9 @@ class WireGuard {
       throw new Error('Client not found');
     }
 
-    return wg.generateClientConfig(wgInterface, userConfig, client);
+    return wg.generateClientConfig(wgInterface, userConfig, client, {
+      enableIpv6: !WG_ENV.DISABLE_IPV6,
+    });
   }
 
   async getClientQRCodeSVG({ clientId }: { clientId: ID }) {

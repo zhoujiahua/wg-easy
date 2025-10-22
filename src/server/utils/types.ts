@@ -22,7 +22,8 @@ export const EnabledSchema = z.boolean({ message: t('zod.enabled') });
 
 export const MtuSchema = z
   .number({ message: t('zod.mtu') })
-  .min(1280, { message: t('zod.mtu') })
+  // min for IPv6 is 1280, but we allow lower for IPv4
+  .min(1024, { message: t('zod.mtu') })
   .max(9000, { message: t('zod.mtu') });
 
 export const PortSchema = z
@@ -40,9 +41,7 @@ export const AddressSchema = z
   .min(1, { message: t('zod.address') })
   .pipe(safeStringRefine);
 
-export const DnsSchema = z
-  .array(AddressSchema, { message: t('zod.dns') })
-  .min(1, t('zod.dns'));
+export const DnsSchema = z.array(AddressSchema, { message: t('zod.dns') });
 
 export const AllowedIpsSchema = z
   .array(AddressSchema, { message: t('zod.allowedIps') })
@@ -84,7 +83,7 @@ export function validateZod<T>(
               if (v.message.startsWith('zod.')) {
                 switch (v.code) {
                   case 'too_small':
-                    switch (v.type) {
+                    switch (v.origin) {
                       case 'string':
                         newMessage = t('zod.generic.stringMin', [
                           t(v.message),
@@ -100,7 +99,7 @@ export function validateZod<T>(
                     }
                     break;
                   case 'invalid_type': {
-                    if (v.received === 'null' || v.received === 'undefined') {
+                    if (v.input === null || v.input === undefined) {
                       newMessage = t('zod.generic.required', [
                         v.path.join('.'),
                       ]);

@@ -13,6 +13,7 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     '@eschricht/nuxt-color-mode',
     'radix-vue/nuxt',
+    '@vueuse/nuxt',
     '@nuxt/eslint',
   ],
   colorMode: {
@@ -26,13 +27,42 @@ export default defineNuxtConfig({
     experimental: {
       localeDetector: './localeDetector.ts',
     },
+    // https://wg-easy.github.io/wg-easy/latest/contributing/translation/
     locales: [
       {
-        // same as i18n.config.ts
         code: 'en',
-        // BCP 47 language tag
         language: 'en-US',
         name: 'English',
+      },
+      {
+        code: 'de',
+        language: 'de-DE',
+        name: 'Deutsch',
+      },
+      {
+        code: 'es',
+        language: 'es-ES',
+        name: 'Español',
+      },
+      {
+        code: 'it',
+        language: 'it-IT',
+        name: 'Italiano',
+      },
+      {
+        code: 'fr',
+        language: 'fr-FR',
+        name: 'Français',
+      },
+      {
+        code: 'ko',
+        language: 'ko-KR',
+        name: '한국어',
+      },
+      {
+        code: 'ru',
+        language: 'ru-RU',
+        name: 'Русский',
       },
       {
         code: 'uk',
@@ -40,9 +70,39 @@ export default defineNuxtConfig({
         name: 'Українська',
       },
       {
-        code: 'fr',
-        language: 'fr-FR',
-        name: 'Français',
+        code: 'zh-CN',
+        language: 'zh-CN',
+        name: '简体中文',
+      },
+      {
+        code: 'zh-HK',
+        language: 'zh-HK',
+        name: '繁體中文（香港）',
+      },
+      {
+        code: 'pl',
+        language: 'pl-PL',
+        name: 'Polski',
+      },
+      {
+        code: 'pt-BR',
+        language: 'pt-BR',
+        name: 'Português (Brasil)',
+      },
+      {
+        code: 'tr',
+        language: 'tr-TR',
+        name: 'Türkçe',
+      },
+      {
+        code: 'bn',
+        language: 'bn-BD',
+        name: 'বাংলা',
+      },
+      {
+        code: 'id',
+        language: 'id-ID',
+        name: 'Bahasa Indonesia',
       },
     ],
     defaultLocale: 'en',
@@ -51,15 +111,12 @@ export default defineNuxtConfig({
     detectBrowserLanguage: {
       useCookie: true,
     },
-    bundle: {
-      optimizeTranslationDirective: false,
-    },
   },
   nitro: {
     esbuild: {
       options: {
         // to support big int
-        target: 'es2020',
+        target: 'node20',
       },
     },
     alias: {
