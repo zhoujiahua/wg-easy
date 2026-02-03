@@ -80,6 +80,11 @@ export default defineNuxtConfig({
         name: '繁體中文（香港）',
       },
       {
+        code: 'zh-TW',
+        language: 'zh-TW',
+        name: '正體中文 (台灣)',
+      },
+      {
         code: 'pl',
         language: 'pl-PL',
         name: 'Polski',
@@ -103,6 +108,16 @@ export default defineNuxtConfig({
         code: 'id',
         language: 'id-ID',
         name: 'Bahasa Indonesia',
+      },
+      {
+        code: 'nl',
+        language: 'nl-NL',
+        name: 'Nederlands',
+      },
+      {
+        code: 'nb',
+        language: 'nb-NO',
+        name: 'Norsk bokmål',
       },
     ],
     defaultLocale: 'en',
